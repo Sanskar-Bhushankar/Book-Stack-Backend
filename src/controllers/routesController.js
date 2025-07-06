@@ -11,8 +11,8 @@ export const getTrendingBooks=async (req, res) => {
             title: book.title || "N/A",
             author_name: book.author_name ? book.author_name[0] : "N/A",
             first_publish_year: book.first_publish_year || "N/A",
-            key: book.key || "N/A", // This is the work key like "/works/OL8894965W"
-            cover_image: book.cover_i
+            open_library_key: book.key || "N/A", // Consistent naming
+            image_url: book.cover_i
                 ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
                 : "https://via.placeholder.com/150x200?text=No+Cover" // Fallback if no cover
         }));
@@ -37,12 +37,12 @@ export const searchBooks=async (req, res) => {
         const apiUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}`;
         const response = await axios.get(apiUrl);
 
-        const books = response.data.docs.slice(0, 10).map(book => ({
+        const books = response.data.docs.map(book => ({
             title: book.title || "N/A",
             author_name: book.author_name ? book.author_name[0] : "N/A",
             first_publish_year: book.first_publish_year || "N/A",
-            key: book.key || "N/A", // This is the work key like "/works/OL8894965W"
-            cover_image: book.cover_i
+            open_library_key: book.key || "N/A", // Consistent naming
+            image_url: book.cover_i
                 ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
                 : "https://via.placeholder.com/150x200?text=No+Cover"
         }));
@@ -57,12 +57,12 @@ export const searchBooks=async (req, res) => {
 
 //  Get Book Details
 export const getBookDetails=async (req, res) => {
-    const workKey = `/works/${req.params.workId}`; // Example: /works/OL8894965W
+    const workId = req.params.workId; // Get workId from params (e.g., OL12204W)
+    const open_library_key = `/works/${workId}`; // Construct the full key
 
     try {
-     
-        const workUrl = `https://openlibrary.org${workKey}.json`;
-        const workRes = await axios.get(workUrl);
+        const workUrl = `https://openlibrary.org${open_library_key}.json`;
+        const workRes = await axios.get(workUrl); // Fetch work details first
         const workData = workRes.data;
 
         let authors = [];
@@ -71,18 +71,38 @@ export const getBookDetails=async (req, res) => {
                 workData.authors.map(async (authorObj) => {
                     const authorKey = authorObj.author.key; // Example: /authors/OL25931A
                     const authorUrl = `https://openlibrary.org${authorKey}.json`;
-                    const authorRes = await axios.get(authorUrl);
-                    return {
-                        name: authorRes.data.name || "N/A",
-                        bio: authorRes.data.bio?.value || authorRes.data.bio || "No bio available",
-                        birth_date: authorRes.data.birth_date || "Unknown",
-                        death_date: authorRes.data.death_date || "Unknown",
-                    };
+                    try {
+                        const authorRes = await axios.get(authorUrl);
+                        return {
+                            name: authorRes.data.name || "N/A",
+                            bio: authorRes.data.bio?.value || authorRes.data.bio || "No bio available",
+                            birth_date: authorRes.data.birth_date || "Unknown",
+                            death_date: authorRes.data.death_date || "Unknown",
+                        };
+                    } catch (authorError) {
+                        console.warn(`Could not fetch details for author ${authorKey}:`, authorError.message);
+                        return { name: "N/A", bio: "No bio available", birth_date: "Unknown", death_date: "Unknown" };
+                    }
                 })
             );
         }
 
-        const combinedDetails = {
+        const title = workData.title || "N/A";
+        const author_name = authors.length > 0 
+                            ? authors[0].name 
+                            : (workData.author_names && workData.author_names.length > 0 ? workData.author_names[0] : "N/A"); // Fallback to workData.author_names if authors array is empty
+        const image_url = workData.covers && workData.covers.length > 0
+                          ? `https://covers.openlibrary.org/b/id/${workData.covers[0]}-M.jpg`
+                          : "https://via.placeholder.com/150x200?text=No+Cover"; // Fallback
+
+        res.json({
+            // Add denormalized key fields here for frontend convenience
+            open_library_key: open_library_key,
+            title: title,
+            author_name: author_name,
+            image_url: image_url,
+
+            // Original response data from Open Library
             work: {
                 title: workData.title || "N/A",
                 description: workData.description?.value || workData.description || "No description available",
@@ -92,14 +112,17 @@ export const getBookDetails=async (req, res) => {
                     (id) => `https://covers.openlibrary.org/b/id/${id}-L.jpg`
                 ) || [],
             },
-            authors: authors
-        };
-
-        res.json(combinedDetails);
+            authors: authors // Use the correctly populated authors array
+        });
 
     } catch (error) {
         console.error("Error fetching book details:", error);
-        res.status(500).json({ message: "Error fetching book details" });
+        // Check for 404 specifically
+        if (error.response && error.response.status === 404) {
+            res.status(404).json({ message: "Book work details not found." });
+        } else {
+            res.status(500).json({ message: "Error fetching book details" });
+        }
     }
 }
 

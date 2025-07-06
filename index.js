@@ -8,6 +8,7 @@ dotenv.config(); // Load environment variables
 
 import galleryRoutes from "./src/routes/galleryRoutes.js";
 import authRoutes from "./src/routes/authRoutes.js"; // New import
+import profileRoutes from "./src/routes/profileRoutes.js"; // New import
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use(session({
 // Routes
 app.use("/gallery", galleryRoutes);
 app.use("/auth", authRoutes); // Mount authentication routes
+app.use("/profile", profileRoutes); // Mount profile routes
 
 app.listen(3000,()=>{
     console.log("Server is running on port 3000");
