@@ -11,7 +11,10 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.50.3",
     "axios": "^1.10.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.1",
+    "express-session": "^1.18.1"
   }
 }
