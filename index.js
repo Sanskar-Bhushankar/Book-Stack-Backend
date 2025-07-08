@@ -4,33 +4,43 @@ import cors from "cors";
 import session from "express-session";
 import dotenv from "dotenv";
 
-dotenv.config(); // Load environment variables
+dotenv.config(); 
 
 import galleryRoutes from "./src/routes/galleryRoutes.js";
-import authRoutes from "./src/routes/authRoutes.js"; // New import
-import profileRoutes from "./src/routes/profileRoutes.js"; // New import
+import authRoutes from "./src/routes/authRoutes.js"; 
+import profileRoutes from "./src/routes/profileRoutes.js"; 
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json()); // To parse JSON request bodies
 
-// Session middleware configuration
+app.use(cors({
+    origin: '*',
+    credentials: true
+}));
+app.use(express.json()); 
+
+
 app.use(session({
-    secret: process.env.SESSION_SECRET, // Use a strong, random secret from your .env
+    // secret: process.env.SESSION_SECRET, 
+    // resave: false,
+    // saveUninitialized: false,
+    // cookie: { 
+    //     secure: process.env.NODE_ENV === 'production', 
+    //     maxAge: 1000 * 60 * 60 * 24 
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { 
-        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production (HTTPS)
-        maxAge: 1000 * 60 * 60 * 24 // 24 hours
+    cookie: {
+        secure: false,          // For Postman (non-HTTPS)
+        sameSite: 'lax',        // Safe for cross-origin requests
+        maxAge: 1000 * 60 * 60 * 24 // 1 day
     }
 }));
 
 // Routes
 app.use("/gallery", galleryRoutes);
-app.use("/auth", authRoutes); // Mount authentication routes
-app.use("/profile", profileRoutes); // Mount profile routes
+app.use("/auth", authRoutes); 
+app.use("/profile", profileRoutes); 
 
 app.listen(3000,()=>{
     console.log("Server is running on port 3000");
